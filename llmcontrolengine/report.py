@@ -14,7 +14,8 @@ Phase 2 changes:
 - No print() calls — all output via rich Console
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -44,6 +45,10 @@ class ExecutionReport:
     total_tokens: int
     estimated_cost: float   # USD
     raw_response: str
+
+    # Optional — injected by ControlEngine when AI summary is enabled.
+    # None means _generate_summary() will use its rule-based fallback.
+    ai_summary: Optional[str] = field(default=None, compare=False, repr=False)
 
     # ------------------------------------------------------------------ #
     #  Public interface                                                    #
@@ -253,11 +258,16 @@ class ExecutionReport:
 
     def _generate_summary(self) -> str:
         """
-        Return a rule-based AI executive summary string.
+        Return the executive summary string for this execution.
 
-        Dynamically composed based on cost and token usage signals.
+        If an AI-generated summary was injected by ControlEngine
+        (via enable_ai_summary()), returns that directly.
+        Otherwise falls back to deterministic rule-based composition.
         No I/O side effects.
         """
+        if self.ai_summary is not None:
+            return self.ai_summary
+
         confidence_score, _ = self._compute_confidence()
         _, risk_color = self._compute_risk()
 

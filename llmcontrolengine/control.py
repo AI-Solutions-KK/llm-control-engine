@@ -54,13 +54,14 @@ class ControlEngine:
     All state resets when the process restarts.
 
     Public governance API (Phase 4):
-        set_budget(limit_usd)           — set maximum cumulative spend per session
-        get_budget_status()             — inspect current spend and remaining budget
-        set_role(role_name, max_tokens) — register a named role with a token limit
-        assign_role(role_name)          — activate a role for subsequent executions
-        guard_mode(enabled, threshold)  — block low-confidence executions
-        history()                       — return list of completed ExecutionReport objects
-        clear_history()                 — wipe in-memory execution history
+        set_budget(limit_usd)                     — set maximum cumulative spend per session
+        get_budget_status()                       — inspect current spend and remaining budget
+        set_role(role_name, max_tokens)           — register a named role with a token limit
+        assign_role(role_name)                    — activate a role for subsequent executions
+        guard_mode(enabled, threshold)            — block low-confidence executions
+        history()                                 — return list of completed ExecutionReport objects
+        clear_history()                           — wipe in-memory execution history
+        enable_ai_summary(enabled, llm_callable)  — enable AI-generated executive summary (Phase 4.5)
     """
 
     def __init__(self) -> None:
@@ -78,6 +79,10 @@ class ControlEngine:
 
         # Execution history (in-memory, session only)
         self._history: list[ExecutionReport] = []
+
+        # AI executive summary state (Phase 4.5)
+        self._ai_summary_enabled: bool = False
+        self._ai_summary_llm: Optional[Callable] = None   # dedicated summary callable; falls back to execute llm
 
     # ── Core execution ────────────────────────────────────────────────────── #
 
@@ -153,7 +158,8 @@ class ControlEngine:
         # 3. Guard mode — checked last, after report is fully built.
         self._enforce_guard_mode(report)
 
-        # All checks passed — record in history and return.
+        # All checks passed — inject optional AI summary, record in history, return.
+        self._maybe_inject_ai_summary(report, llm)
         self._history.append(report)
         return report
 
@@ -267,6 +273,38 @@ class ControlEngine:
         """Wipe all in-memory execution history for this session."""
         self._history.clear()
 
+    # ── AI Summary API (Phase 4.5) ────────────────────────────────────────── #
+
+    def enable_ai_summary(self, enabled: bool = True, llm_callable: Optional[Callable] = None) -> None:
+        """
+        Enable or disable AI-generated executive summaries.
+
+        When enabled, after each successful execution, a second (lightweight) LLM
+        call generates a natural-language executive summary and injects it into
+        the ExecutionReport before display() or export() is called.
+
+        If the AI summary call fails for any reason, execution silently falls back
+        to the rule-based summary already built into ExecutionReport.
+
+        Args:
+            enabled:        True to activate AI summaries, False to deactivate.
+            llm_callable:   Optional dedicated LLM callable for summary generation.
+                            Must satisfy the same contract as execute()'s llm arg.
+                            If None, the same callable passed to execute() is reused.
+
+        Example:
+            # Use same LLM for summaries (reuses the execute() callable):
+            control.enable_ai_summary(True)
+
+            # Use a cheaper/dedicated model for summaries:
+            control.enable_ai_summary(True, llm_callable=cheap_summary_llm)
+
+            # Disable (revert to rule-based):
+            control.enable_ai_summary(False)
+        """
+        self._ai_summary_enabled = enabled
+        self._ai_summary_llm = llm_callable if enabled else None
+
     # ── Private governance enforcers ──────────────────────────────────────── #
 
     def _check_budget_headroom(self) -> None:
@@ -336,6 +374,44 @@ class ControlEngine:
             )
 
     # ── Private static validators ─────────────────────────────────────────── #
+
+    def _maybe_inject_ai_summary(self, report: ExecutionReport, execute_llm: Callable) -> None:
+        """
+        Attempt to generate an AI executive summary and inject it into the report.
+
+        Uses the dedicated summary LLM if set, otherwise falls back to the same
+        callable used in execute(). If the call fails for any reason, the report's
+        ai_summary remains None and _generate_summary() uses the rule-based fallback.
+
+        This method never raises. All errors are silently swallowed.
+        """
+        if not self._ai_summary_enabled:
+            return
+
+        try:
+            llm = self._ai_summary_llm or execute_llm
+            confidence_score, _ = report._compute_confidence()
+            risk_level, _ = report._compute_risk()
+
+            prompt = (
+                f"Write a professional 2-3 sentence executive summary for the following "
+                f"AI model execution result. Be concise and business-appropriate.\n"
+                f"Model: {report.model_name} | "
+                f"Total tokens: {report.total_tokens:,} | "
+                f"Cost: ${report.estimated_cost:.6f} USD | "
+                f"Execution time: {report.execution_time} sec | "
+                f"Confidence: {confidence_score}% | "
+                f"Risk level: {risk_level}.\n"
+                f"Respond with the summary text only, no headings or labels."
+            )
+
+            result = llm(prompt)
+            if isinstance(result, dict) and "response" in result:
+                summary_text = str(result["response"]).strip()
+                if summary_text:
+                    report.ai_summary = summary_text
+        except Exception:
+            pass   # fail-safe: ai_summary stays None → rule-based fallback activates
 
     @staticmethod
     def _validate_result(result: object) -> None:
