@@ -5,6 +5,7 @@
 
 # Runtime
 rich>=13.0.0
+reportlab>=4.0.0
 
 # Development & testing
 pytest>=7.4.0

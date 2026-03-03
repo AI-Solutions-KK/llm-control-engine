@@ -135,6 +135,41 @@ class ExecutionReport:
 
         _console.print()
 
+    def export(self, fmt: str = "pdf", output_dir: str = ".") -> str:
+        """
+        Export the execution report as a professional audit document.
+
+        Args:
+            fmt:        Output format — one of: 'md', 'html', 'pdf'
+            output_dir: Directory to write the file. Defaults to current directory.
+
+        Returns:
+            Absolute path to the generated file.
+
+        Example:
+            report.export("pdf")
+            report.export("md", output_dir="./reports")
+            report.export("html")
+        """
+        from llmcontrolengine.exporter import export as _export
+
+        confidence_score, _ = self._compute_confidence()
+        risk_level, _ = self._compute_risk()
+
+        quality = {
+            "confidence_score": confidence_score,
+            "risk_level": risk_level,
+            "notes": self._generate_notes(),
+            "summary": self._generate_summary(),
+        }
+
+        return _export(
+            data=self.to_dict(),
+            quality=quality,
+            fmt=fmt,
+            output_dir=output_dir,
+        )
+
     def to_dict(self) -> dict:
         """
         Return execution data as a plain dictionary.

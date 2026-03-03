@@ -31,9 +31,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
-# Phase 3 will add: markdown>=3.5.0, weasyprint>=60.0 (or reportlab>=4.0.0)
 dependencies = [
     "rich>=13.0.0",
+    "reportlab>=4.0.0",
 ]
 
 [project.urls]
