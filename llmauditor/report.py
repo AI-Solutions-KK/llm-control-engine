@@ -2,14 +2,13 @@
 report.py — ExecutionReport dataclass and CLI display logic.
 
 Responsibilities:
-- Define the ExecutionReport data structure (all execution metrics)
+- Define ExecutionReport data structure (all per-execution metrics)
 - Compute quality signals: confidence score, risk level, system notes
-- Render a rich CLI audit panel (display())
-- Delegate export to the exporter module
-- Provide stable to_dict() serialisation contract
+- Render rich CLI audit panel (display())
+- Delegate export to exporter module
+- Provide stable to_dict() serialisation
 
-This module uses the `rich` library for terminal output.
-No governance logic lives here — this is pure data + presentation.
+Hallucination analysis is attached externally by the auditor layer.
 """
 
 from __future__ import annotations
@@ -26,18 +25,14 @@ from rich import box
 _console = Console()
 
 
-# ── ExecutionReport ───────────────────────────────────────────────────────── #
-
 @dataclass
 class ExecutionReport:
     """
     Immutable record of a single LLM execution with full audit trail.
 
-    Core fields are set at construction time by ControlEngine / LLMSupervisor.
+    Core fields are set at construction by LLMAuditor.
     Quality signals (confidence, risk, notes, summary) are computed on demand.
-
-    Phase 4.5:  ai_summary — optional AI-generated executive summary text.
-    Phase 5:    warnings  — governance violations captured in alert mode.
+    Hallucination analysis is attached after construction by the auditor layer.
     """
 
     # ── Core metrics (required at construction) ─────────────────────────── #
@@ -53,37 +48,28 @@ class ExecutionReport:
     # ── Optional fields (post-construction injection) ─────────────────────── #
     ai_summary: Optional[str] = field(default=None, compare=False, repr=False)
 
-    # Phase 5: governance warnings (populated by observe() in alert mode)
+    # Governance warnings (populated by observe/execute in alert mode)
     warnings: list[str] = field(default_factory=list, compare=False, repr=False)
+
+    # Hallucination analysis result (attached by auditor after hallucination detection)
+    hallucination: Optional[object] = field(default=None, compare=False, repr=False)
 
     # ── Public display ────────────────────────────────────────────────────── #
 
     def display(self) -> None:
-        """
-        Render a structured CLI audit panel using rich.
-
-        Sections:
-            1. Header
-            2. Model Info
-            3. Usage Metrics
-            4. Quality Metrics
-            5. System Notes
-            6. Governance Warnings  (only shown when warnings list is non-empty)
-            7. AI Executive Summary (only shown when ai_summary is set)
-        """
+        """Render a structured CLI audit panel using rich."""
         confidence_score, confidence_label = self._compute_confidence()
         risk_level, risk_label = self._compute_risk()
         notes = self._generate_notes()
         summary = self._generate_summary()
 
-        # ── Section 1: Header ─────────────────────────────────────────────── #
         header_text = Text(
-            "LLM SUPERVISOR  ·  EXECUTION REPORT",
+            "LLM AUDITOR  ·  EXECUTION REPORT",
             style="bold white on navy_blue",
             justify="center",
         )
 
-        # ── Section 2: Model Info ─────────────────────────────────────────── #
+        # Model Info
         model_table = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
         model_table.add_column(style="dim cyan", no_wrap=True)
         model_table.add_column(style="white")
@@ -91,7 +77,7 @@ class ExecutionReport:
         model_table.add_row("Model", self.model_name)
         model_table.add_row("Execution Time", f"{self.execution_time} sec")
 
-        # ── Section 3: Usage Metrics ──────────────────────────────────────── #
+        # Usage Metrics
         usage_table = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
         usage_table.add_column(style="dim cyan", no_wrap=True)
         usage_table.add_column(style="white")
@@ -100,7 +86,7 @@ class ExecutionReport:
         usage_table.add_row("Total Tokens",  f"[bold]{self.total_tokens:,}[/bold]")
         usage_table.add_row("Estimated Cost", f"[bold green]${self.estimated_cost:.6f} USD[/bold green]")
 
-        # ── Section 4: Quality Metrics ────────────────────────────────────── #
+        # Quality Metrics
         conf_color = "green" if confidence_score >= 85 else "yellow" if confidence_score >= 70 else "red"
         risk_color = "green" if risk_level == "LOW" else "yellow"
 
@@ -116,15 +102,22 @@ class ExecutionReport:
             f"[bold {risk_color}]{risk_level}[/bold {risk_color}]  {risk_label}",
         )
 
-        # ── Section 5: System Notes ───────────────────────────────────────── #
+        # Hallucination metrics (if available)
+        if self.hallucination is not None:
+            hal = self.hallucination
+            hal_color = "green" if hal.risk_level == "LOW" else "yellow" if hal.risk_level == "MEDIUM" else "red"
+            quality_table.add_row(
+                "Hallucination Risk",
+                f"[bold {hal_color}]{hal.risk_score_pct}% {hal.risk_level}[/bold {hal_color}]  ({hal.method})",
+            )
+
+        # System Notes
         notes_text = Text()
         for i, note in enumerate(notes):
-            notes_text.append(f"  • {note}", style="dim white")
+            notes_text.append(f"  \u2022 {note}", style="dim white")
             if i < len(notes) - 1:
                 notes_text.append("\n")
 
-        # ── Assemble all sections ─────────────────────────────────────────── #
-        from rich.columns import Columns
         from rich.console import Group
 
         content_parts = [
@@ -140,57 +133,29 @@ class ExecutionReport:
             notes_text,
         ]
 
-        # ── Section 6: Governance Warnings (Phase 5) ──────────────────────── #
+        # Governance Warnings
         if self.warnings:
             warnings_text = Text()
             for i, warning in enumerate(self.warnings):
-                warnings_text.append(f"  ⚠  {warning}", style="bold yellow")
+                warnings_text.append(f"  \u26a0  {warning}", style="bold yellow")
                 if i < len(self.warnings) - 1:
                     warnings_text.append("\n")
-            content_parts += [
-                "",
-                "[bold yellow]GOVERNANCE WARNINGS[/bold yellow]",
-                warnings_text,
-            ]
+            content_parts += ["", "[bold yellow]GOVERNANCE WARNINGS[/bold yellow]", warnings_text]
 
-        # ── Section 7: AI Executive Summary (Phase 4.5) ──────────────────── #
-        if self.ai_summary:
-            summary_text = Text(f"\n  {self.ai_summary}\n", style="italic white")
-            content_parts += [
-                "",
-                "[bold dim]AI EXECUTIVE SUMMARY[/bold dim]",
-                summary_text,
-            ]
-        else:
-            summary_text = Text(f"\n  {summary}\n", style="italic dim white")
-            content_parts += [
-                "",
-                "[bold dim]AI EXECUTIVE SUMMARY[/bold dim]",
-                summary_text,
-            ]
+        # Executive Summary
+        display_summary = self.ai_summary or summary
+        summary_text = Text(f"\n  {display_summary}\n", style="italic white")
+        content_parts += ["", "[bold dim]AI EXECUTIVE SUMMARY[/bold dim]", summary_text]
 
         _console.print(
-            Panel(
-                Group(*content_parts),
-                border_style="navy_blue",
-                padding=(1, 2),
-            )
+            Panel(Group(*content_parts), border_style="navy_blue", padding=(1, 2))
         )
 
     # ── Export ────────────────────────────────────────────────────────────── #
 
     def export(self, fmt: str = "md", output_dir: str = ".") -> str:
-        """
-        Export this report to a file in the specified format.
-
-        Args:
-            fmt:        Export format. One of: 'md', 'html', 'pdf'. Default: 'md'.
-            output_dir: Directory to write the output file. Default: current dir.
-
-        Returns:
-            Absolute path to the generated file.
-        """
-        from llmsupervisor.exporter import export as _export
+        """Export this report to a file (md, html, or pdf)."""
+        from llmauditor.exporter import export_execution
 
         confidence_score, confidence_label = self._compute_confidence()
         risk_level, _ = self._compute_risk()
@@ -204,7 +169,7 @@ class ExecutionReport:
             "summary": summary,
         }
 
-        return _export(
+        return export_execution(
             data=self.to_dict(),
             quality=quality,
             fmt=fmt,
@@ -214,16 +179,11 @@ class ExecutionReport:
     # ── Serialisation ─────────────────────────────────────────────────────── #
 
     def to_dict(self) -> dict:
-        """
-        Return a stable serialisation of the report.
-
-        Keys are guaranteed to remain stable across patch versions.
-        Computed quality signals are included for downstream consumers.
-        """
+        """Stable serialisation of the report."""
         confidence_score, confidence_label = self._compute_confidence()
         risk_level, risk_label = self._compute_risk()
 
-        return {
+        d = {
             "execution_id":     self.execution_id,
             "model_name":       self.model_name,
             "execution_time":   self.execution_time,
@@ -238,36 +198,27 @@ class ExecutionReport:
             "warnings":         list(self.warnings),
         }
 
+        if self.hallucination is not None:
+            d["hallucination"] = self.hallucination.to_dict()
+
+        return d
+
     # ── Private quality computers ──────────────────────────────────────────── #
 
     def _compute_confidence(self) -> tuple[int, str]:
-        """
-        Compute a confidence score (0–100) and a human-readable label.
-
-        Heuristic:
-            - Start at 100
-            - Penalise for very short responses (possible truncation or refusal)
-            - Penalise for very high cost (aggressive token usage)
-            - Penalise for slow execution (possible timeout risk)
-
-        Returns:
-            (score: int, label: str)
-        """
+        """Compute confidence score (0–100) and label."""
         score = 100
 
-        # Penalise very short raw responses
         if len(self.raw_response) < 20:
             score -= 30
         elif len(self.raw_response) < 50:
             score -= 15
 
-        # Penalise high cost (> $0.05 per execution)
         if self.estimated_cost > 0.05:
             score -= 20
         elif self.estimated_cost > 0.02:
             score -= 10
 
-        # Penalise slow execution (> 10 seconds)
         if self.execution_time > 10:
             score -= 15
         elif self.execution_time > 5:
@@ -276,115 +227,68 @@ class ExecutionReport:
         score = max(0, score)
 
         if score >= 85:
-            label = "High — execution completed within expected parameters"
+            label = "High \u2014 execution completed within expected parameters"
         elif score >= 70:
-            label = "Medium — minor anomalies detected, review advised"
+            label = "Medium \u2014 minor anomalies detected, review advised"
         else:
-            label = "Low — significant anomalies detected, manual review required"
+            label = "Low \u2014 significant anomalies detected, manual review required"
 
         return score, label
 
     def _compute_risk(self) -> tuple[str, str]:
-        """
-        Compute a risk level (LOW / MEDIUM / HIGH) and a human-readable label.
-
-        Based on cost and token usage thresholds.
-
-        Returns:
-            (risk_level: str, risk_label: str)
-        """
+        """Compute risk level (LOW / MEDIUM / HIGH) and label."""
         if self.estimated_cost > 0.05 or self.total_tokens > 8000:
-            level = "HIGH"
-            label = "High usage detected — consider rate limiting or token budgets"
-        elif self.estimated_cost > 0.01 or self.total_tokens > 3000:
-            level = "MEDIUM"
-            label = "Moderate usage — monitor cumulative cost across sessions"
-        else:
-            level = "LOW"
-            label = "Within normal operating parameters"
-
-        return level, label
+            return "HIGH", "High usage detected \u2014 consider rate limiting or token budgets"
+        if self.estimated_cost > 0.01 or self.total_tokens > 3000:
+            return "MEDIUM", "Moderate usage \u2014 monitor cumulative cost across sessions"
+        return "LOW", "Within normal operating parameters"
 
     def _generate_notes(self) -> list[str]:
-        """
-        Generate a list of clinical system notes based on execution metrics.
-
-        Notes are deterministic given the same execution data.
-        """
+        """Generate clinical system notes from execution metrics."""
         notes = []
-        confidence_score, _ = self._compute_confidence()
-        risk_level, _ = self._compute_risk()
 
         if self.execution_time > 10:
-            notes.append(
-                f"Execution time {self.execution_time}s exceeds 10s threshold — "
-                f"consider async processing or model switch."
-            )
+            notes.append(f"Execution time {self.execution_time}s exceeds 10s threshold.")
         elif self.execution_time > 5:
-            notes.append(
-                f"Execution time {self.execution_time}s is elevated — "
-                f"monitor for latency trends."
-            )
+            notes.append(f"Execution time {self.execution_time}s is elevated.")
         else:
             notes.append(f"Execution time {self.execution_time}s is within normal range.")
 
         if self.total_tokens > 8000:
-            notes.append(
-                f"Token usage {self.total_tokens:,} is very high — "
-                f"review prompt efficiency and consider chunking."
-            )
+            notes.append(f"Token usage {self.total_tokens:,} is very high.")
         elif self.total_tokens > 3000:
-            notes.append(
-                f"Token usage {self.total_tokens:,} is moderate — "
-                f"track cumulative spend."
-            )
+            notes.append(f"Token usage {self.total_tokens:,} is moderate.")
         else:
             notes.append(f"Token usage {self.total_tokens:,} is efficient.")
 
         if self.estimated_cost > 0.05:
-            notes.append(
-                f"Cost ${self.estimated_cost:.6f} USD is above the $0.05 high-cost threshold."
-            )
+            notes.append(f"Cost ${self.estimated_cost:.6f} USD is above the high-cost threshold.")
         elif self.estimated_cost > 0.01:
-            notes.append(
-                f"Cost ${self.estimated_cost:.6f} USD is moderate — "
-                f"review if this model is cost-appropriate."
-            )
+            notes.append(f"Cost ${self.estimated_cost:.6f} USD is moderate.")
         else:
             notes.append(f"Cost ${self.estimated_cost:.6f} USD is within budget norms.")
 
         if len(self.raw_response) < 20:
-            notes.append(
-                "Response is very short — possible refusal, empty output, or truncation."
-            )
-
-        if risk_level == "HIGH":
-            notes.append(
-                "HIGH risk execution — recommend immediate review and budget cap assessment."
-            )
+            notes.append("Response is very short \u2014 possible refusal or truncation.")
 
         return notes
 
     def _generate_summary(self) -> str:
-        """
-        Generate a rule-based executive summary string.
-
-        If ai_summary has been injected by LLMSupervisor, that takes precedence
-        and this method is not called for display — but it is always called for export.
-        The ai_summary field is checked upstream in display() and export().
-        """
+        """Generate a rule-based executive summary."""
         if self.ai_summary:
             return self.ai_summary
 
         confidence_score, _ = self._compute_confidence()
         risk_level, _ = self._compute_risk()
 
-        quality = "satisfactory" if confidence_score >= 85 else "adequate" if confidence_score >= 70 else "concerning"
+        quality = (
+            "satisfactory" if confidence_score >= 85
+            else "adequate" if confidence_score >= 70
+            else "concerning"
+        )
         risk_note = (
-            "within normal operating parameters"
-            if risk_level == "LOW"
-            else "flagged for elevated resource usage"
-            if risk_level == "MEDIUM"
+            "within normal operating parameters" if risk_level == "LOW"
+            else "flagged for elevated resource usage" if risk_level == "MEDIUM"
             else "flagged as high-risk and requires immediate review"
         )
 
