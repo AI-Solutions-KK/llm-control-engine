@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "llmauditor"
 version = "1.1.0"
-description = "LLMAuditor — Execution-Based GenAI Application Evaluation & Certification Framework."
+description = "LLMAuditor — Execution-Based GenAI Application Evaluation & Certification Framework. Audit, track, and certify any LLM/GenAI/Agentic AI application with cost tracking, hallucination detection, and governance enforcement."
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license = "MIT"
 keywords = [
     "llm",
     "ai-governance",
@@ -17,17 +17,30 @@ keywords = [
     "cost-estimation",
     "generative-ai",
     "execution-control",
+    "hallucination-detection",
+    "certification",
+    "agentic-ai",
+    "openai",
+    "langchain",
+    "anthropic",
+    "gemini",
+    "llm-evaluation",
+    "ai-safety",
+    "mlops",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
@@ -37,8 +50,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/llm-control-engine"
-Issues = "https://github.com/yourusername/llm-control-engine/issues"
+Homepage = "https://github.com/AI-Solutions-KK/llmauditor"
+Documentation = "https://github.com/AI-Solutions-KK/llmauditor/blob/main/DOCUMENTATION.md"
+Repository = "https://github.com/AI-Solutions-KK/llmauditor"
+Issues = "https://github.com/AI-Solutions-KK/llmauditor/issues"
+Changelog = "https://github.com/AI-Solutions-KK/llmauditor/releases"
 
 [tool.setuptools.packages.find]
 where = ["."]
