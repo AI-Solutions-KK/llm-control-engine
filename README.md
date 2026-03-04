@@ -1,8 +1,8 @@
 # LLMAuditor
 
-[![PyPI version](https://img.shields.io/pypi/v/llmauditor.svg)](https://pypi.org/project/llmauditor/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/llmauditor.svg)](https://pypi.org/project/llmauditor/)
-[![License](https://img.shields.io/github/license/AI-Solutions-KK/llmauditor)](LICENSE)
+[![PyPI version](https://img.shields.io/badge/pypi-v1.1.2-blue.svg)](https://pypi.org/project/llmauditor/)
+[![Python Versions](https://img.shields.io/badge/python-3.9%2B-brightgreen.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 
 **Execution-Based GenAI Application Evaluation & Certification Framework.**
 
