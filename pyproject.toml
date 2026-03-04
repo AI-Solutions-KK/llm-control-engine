@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llmauditor"
-version = "1.1.3"
-description = "Execution-Based GenAI Application Evaluation & Certification Framework"
+version = "1.1.4"
+description = "LLMAuditor is an execution-based evaluation and monitoring framework for LLM, GenAI, and agentic AI applications, providing hallucination detection, cost tracking, and governance auditing."
 readme = "README.md"
 requires-python = ">=3.9"
 
@@ -22,50 +22,39 @@ maintainers = [
 keywords = [
   "llm",
   "genai",
-  "llmaudit",
+  "generative-ai",
+  "ai-evaluation",
   "llm-evaluation",
+  "llm-monitoring",
   "ai-governance",
   "hallucination-detection",
-  "genai-monitoring",
-  "ai-certification",
-  "machine-learning",
-  "artificial-intelligence",
   "ai-audit",
-  "ai-auditing",
-  "llm-audit",
-  "ai-compliance",
-  "ai-monitoring",
-  "ai-testing",
   "llm-testing",
-  "ai-validation",
-  "genai-audit",
-  "llm-governance",
-  "ai-risk",
-  "ai-assessment",
-  "llm-compliance",
-  "audit",
+  "rag-evaluation",
+  "ai-observability",
+  "mlops",
+  "ai-certification",
+  "agentic-ai",
+  "ai-safety",
   "token-tracking",
   "cost-estimation",
-  "generative-ai",
-  "execution-control",
-  "certification",
-  "agentic-ai",
-  "openai",
-  "langchain",
-  "anthropic",
-  "gemini",
-  "ai-safety",
-  "mlops"
+  "ai-compliance",
+  "genai-monitoring",
+  "execution-control"
 ]
 classifiers = [
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3 :: Only",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
   "License :: OSI Approved :: Apache Software License",
   "Operating System :: OS Independent",
-  "Intended Audience :: Developers",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
-  "Topic :: Software Development :: Libraries",
-  "Topic :: Software Development :: Testing"
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Topic :: Software Development :: Testing",
+  "Topic :: Software Development :: Libraries"
 ]
 
 dependencies = [
