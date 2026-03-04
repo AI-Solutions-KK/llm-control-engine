@@ -1,6 +1,6 @@
 # LLMAuditor
 
-[![PyPI version](https://img.shields.io/badge/pypi-v1.1.2-blue.svg)](https://pypi.org/project/llmauditor/)
+[![PyPI version](https://img.shields.io/badge/pypi-v1.1.3-blue.svg)](https://pypi.org/project/llmauditor/)
 [![Python Versions](https://img.shields.io/badge/python-3.9%2B-brightgreen.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 
@@ -398,7 +398,7 @@ llm-control-engine/
 ---
 # LLMAuditor — Complete Usage Guide 
 
-> **Version:** 1.1.0  
+> **Version:** 1.1.3  
 > **License:** Apache-2.0  
 > **Python:** ≥ 3.9  
 > **Install:** `pip install llmauditor`
@@ -2150,7 +2150,7 @@ print(f"\nBudget: ${status['cumulative_cost']:.4f} / ${status['budget_limit']:.2
 
 ---
 
-*LLMAuditor v1.1.0 — Apache-2.0 License — [GitHub](https://github.com/AI-Solutions-KK/llmauditor)*
+*LLMAuditor v1.1.3 — Apache-2.0 License — [GitHub](https://github.com/AI-Solutions-KK/llmauditor)*
 
 ---
 
