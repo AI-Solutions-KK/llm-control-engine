@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llmauditor"
-version = "1.2.1"
+version = "1.1.9"
 description = "LLMAuditor is an execution-based evaluation and monitoring framework for LLM, GenAI, and agentic AI applications, providing hallucination detection, cost tracking, and governance auditing."
 readme = "README.md"
 requires-python = ">=3.9"
